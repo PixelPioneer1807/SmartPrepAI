@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: StudyAI
+Version: 0.1
+Author: Shivam Kumar Srivastava
+Requires-Dist: langchain
+Requires-Dist: langchain-groq
+Requires-Dist: pandas
+Requires-Dist: streamlit
+Requires-Dist: python-dotenv
+Dynamic: author
+Dynamic: requires-dist

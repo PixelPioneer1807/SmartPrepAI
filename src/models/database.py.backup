@@ -1,0 +1,79 @@
+import sqlite3
+import os
+from datetime import datetime
+import json
+from typing import Dict, List, Optional
+import hashlib
+
+class Database:
+    def __init__(self, db_path: str = "studyai.db"):
+        self.db_path = db_path
+        self.init_database()
+    
+    def init_database(self):
+        """Initialize the database with required tables"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Users table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login TIMESTAMP,
+                total_quizzes INTEGER DEFAULT 0,
+                total_score REAL DEFAULT 0.0
+            )
+        ''')
+        
+        # Quiz sessions table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS quiz_sessions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                topic TEXT NOT NULL,
+                sub_topic TEXT,
+                question_type TEXT NOT NULL,
+                difficulty TEXT NOT NULL,
+                num_questions INTEGER NOT NULL,
+                questions_data TEXT,
+                user_answers TEXT,
+                correct_answers TEXT,
+                score REAL,
+                completion_time INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id)
+            )
+        ''')
+        
+        # Analytics table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS analytics (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                session_id INTEGER,
+                event_type TEXT NOT NULL,
+                event_data TEXT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users (id),
+                FOREIGN KEY (session_id) REFERENCES quiz_sessions (id)
+            )
+        ''')
+        
+        conn.commit()
+        conn.close()
+    
+    def get_connection(self):
+        """Get database connection"""
+        return sqlite3.connect(self.db_path)
+    
+    def hash_password(self, password: str) -> str:
+        """Hash password using SHA-256"""
+        return hashlib.sha256(password.encode()).hexdigest()
+    
+    def verify_password(self, password: str, hashed: str) -> bool:
+        """Verify password against hash"""
+        return self.hash_password(password) == hashed
