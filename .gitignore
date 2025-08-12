@@ -1,7 +1,4 @@
 .env
-
 venv/
-
-StudyAI.engg-info/
-
-__pycache__/
+StudyAI.egg-info/
+logs/

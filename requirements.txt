@@ -3,5 +3,4 @@ langchain-groq
 pandas
 streamlit
 python-dotenv
-sqlite3
-hashlib
+flask
