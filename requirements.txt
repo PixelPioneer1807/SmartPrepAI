@@ -3,3 +3,7 @@ langchain-groq
 pandas
 streamlit
 python-dotenv
+PyJWT
+altair
+faiss-cpu
+langchain-community

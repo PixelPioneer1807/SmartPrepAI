@@ -1,6 +1,9 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
+# Add these with your other imports
+import pandas as pd
+from src.components.analytics_charts import plot_performance_over_time, plot_performance_by_topic
 from src.utils.helper import *
 from src.generator.question_generator import QuestionGenerator
 from src.models.auth import AuthManager
@@ -23,11 +26,14 @@ def show_login_signup():
             login_btn = st.form_submit_button("Login")
             
             if login_btn and username and password:
-                user = auth.login_user(username, password)
-                if user:
-                    st.session_state.user = user
+                user_data = auth.login_user(username, password)
+                if user_data:
+                    # Store user info and token in session state
+                    st.session_state.user = {k: v for k, v in user_data.items() if k != 'token'}
+                    st.session_state.token = user_data['token']
                     st.success("Login successful!")
                     st.rerun()
+                    st.write(st.session_state)
                 else:
                     st.error("Invalid username or password")
     
@@ -227,105 +233,106 @@ def show_smart_recommendations():
     return None, None, None, None, None
 
 def show_dashboard():
-    """Show user dashboard with simple analytics"""
+    """Show user dashboard with analytics and visualizations."""
     user = st.session_state.user
-    
     session_manager = SimpleSessionManager()
     
     st.header(f"Welcome back, {user['username']}! 👋")
     
-    user_sessions = session_manager.get_user_sessions(user['id'], 100)
+    # Fetch all user sessions for analytics
+    user_sessions = session_manager.get_user_sessions(user['id'], limit=1000)
     
+    if not user_sessions:
+        st.info("Your dashboard will be populated with analytics once you complete your first quiz!")
+        return
+
+    # --- Key Metrics ---
     total_quizzes = len(user_sessions)
-    avg_score = sum([s['score'] for s in user_sessions]) / len(user_sessions) if user_sessions else 0
-    max_score = max([s['score'] for s in user_sessions]) if user_sessions else 0
+    avg_score = sum(s['score'] for s in user_sessions) / total_quizzes if total_quizzes > 0 else 0
     
     from datetime import datetime, timedelta
     seven_days_ago = datetime.now() - timedelta(days=7)
-    recent_sessions = [s for s in user_sessions if s['created_at'] >= seven_days_ago.strftime('%Y-%m-%d')]
+    recent_sessions_count = sum(1 for s in user_sessions if datetime.strptime(s['created_at'], '%Y-%m-%d %H:%M:%S') >= seven_days_ago)
+
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Total Quizzes Taken", total_quizzes)
+    col2.metric("Average Score", f"{avg_score:.1f}%")
+    col3.metric("Quizzes This Week", recent_sessions_count)
     
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Total Quizzes", total_quizzes)
-    with col2:
-        st.metric("Average Score", f"{avg_score:.1f}%")
-    with col3:
-        st.metric("Best Score", f"{max_score:.1f}%")
-    with col4:
-        st.metric("Quizzes This Week", len(recent_sessions))
+    st.markdown("---")
+
+    # --- Visualizations ---
+    st.subheader("📊 Your Performance Visualized")
+    df = pd.DataFrame(user_sessions)
+    plot_performance_over_time(df)
+    plot_performance_by_topic(df)
+
+    st.markdown("---")
+
+    # --- Areas for Improvement (Weak Topics) ---
+    st.subheader("🎯 Areas for Improvement")
     
-    # Show AI-powered performance insights with error handling
-    if total_quizzes > 0:
-        st.subheader("🤖 AI Performance Insights")
-        try:
-            quiz_manager = st.session_state.quiz_manager
-            if hasattr(quiz_manager, 'question_logger') and quiz_manager.question_logger:
-                analysis = quiz_manager.question_logger.analyze_weak_topics(user['id'], days=14)
-                
-                if analysis['weak_topics']:
-                    st.warning("**Areas for Improvement:**")
-                    for topic, data in list(analysis['weak_topics'].items())[:3]:
-                        col1, col2 = st.columns([3, 1])
-                        with col1:
-                            st.write(f"• **{topic}**: {data['accuracy']:.0f}% accuracy")
-                        with col2:
-                            st.write(f"({data['total_questions']} questions)")
-                else:
-                    st.success("🎉 **Great job!** You're performing well across all topics!")
-            else:
-                st.info("📊 AI insights will appear after you take more quizzes!")
-        except Exception as e:
-            print(f"Dashboard AI insights error: {e}")
-            st.info("📊 AI insights will appear after you take more quizzes!")
+    # Analyze all sessions to find topics with scores below 70%
+    topic_performance = {}
+    for session in user_sessions:
+        # Use display_title which combines topic and sub-topic
+        topic_key = session['display_title']
+        if topic_key not in topic_performance:
+            topic_performance[topic_key] = {'scores': [], 'count': 0}
+        topic_performance[topic_key]['scores'].append(session['score'])
+        topic_performance[topic_key]['count'] += 1
+        
+    weak_topics = []
+    for topic, data in topic_performance.items():
+        avg_score = sum(data['scores']) / len(data['scores'])
+        if avg_score < 70:
+            weak_topics.append({
+                "topic": topic,
+                "avg_score": avg_score,
+                "count": data['count']
+            })
+
+    if weak_topics:
+        st.warning("Our AI has identified some topics where you could improve. Focus on these to boost your skills!")
+        # Sort by lowest score to show the weakest topics first
+        for topic_data in sorted(weak_topics, key=lambda x: x['avg_score']):
+            topic_name = topic_data['topic']
+            
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown(f"**{topic_name}**")
+                st.caption(f"Average Score: {topic_data['avg_score']:.1f}% over {topic_data['count']} quiz(zes)")
+            with col2:
+                # This button is the placeholder for our next big feature!
+                if st.button("🚀 Personalized Prep", key=f"prep_{topic_name}", help=f"Start a personalized RAG session for {topic_name}"):
+                    st.info("Personalized Preparation feature coming soon!")
+        
+    else:
+        st.success("🎉 Great job! You're performing well across all your topics.")
     
-    st.subheader("Recent Quiz Sessions")
-    recent_sessions_display = session_manager.get_user_sessions(user['id'], 5)
+    st.markdown("---")
+
+    # --- Recent Quizzes ---
+    st.subheader("📖 Recent Quiz History")
+    recent_sessions_display = user_sessions[:5]
     
     if recent_sessions_display:
         for session in recent_sessions_display:
-            with st.expander(f"{session['display_title']} - {session['score']:.1f}% ({session['short_date']})"):
+            with st.expander(f"**{session['display_title']}** - Score: {session['score']:.1f}% ({session['short_date']})"):
                 col1, col2, col3 = st.columns(3)
                 with col1:
-                    st.write(f"**Type:** {session['question_type']}")
+                    st.write(f"**Topic:** {session['topic']}")
                     st.write(f"**Difficulty:** {session['difficulty']}")
                 with col2:
                     st.write(f"**Questions:** {session['num_questions']}")
-                    st.write(f"**Score:** {session['score']:.1f}%")
+                    st.write(f"**Type:** {session['question_type']}")
                 with col3:
-                    if st.button(f"📖 Review Quiz", key=f"review_{session['id']}"):
+                    if st.button("Review Quiz", key=f"review_{session['id']}"):
                         st.session_state.viewing_quiz_id = session['id']
                         st.session_state.view_mode = 'revision'
                         st.rerun()
-                    if st.button(f"🔄 Retake Similar", key=f"retake_{session['id']}"):
-                        st.session_state.retake_topic = session['topic']
-                        st.session_state.retake_difficulty = session['difficulty']
-                        st.session_state.retake_type = session['question_type']
-                        st.session_state.retake_questions = session['num_questions']
-                        st.info("Quiz settings loaded! Switch to 'New Quiz' tab.")
     else:
-        st.info("No previous sessions found. Start your first quiz!")
-    
-    if len(user_sessions) > 1:
-        st.subheader("Performance by Topic")
-        
-        topic_stats = {}
-        for session in user_sessions:
-            topic = session['topic']
-            if topic not in topic_stats:
-                topic_stats[topic] = {'scores': [], 'count': 0}
-            topic_stats[topic]['scores'].append(session['score'])
-            topic_stats[topic]['count'] += 1
-        
-        for topic, stats in topic_stats.items():
-            avg_topic_score = sum(stats['scores']) / len(stats['scores'])
-            
-            # Color code based on performance
-            if avg_topic_score >= 80:
-                st.success(f"**{topic}**: {stats['count']} quizzes, {avg_topic_score:.1f}% average ✨")
-            elif avg_topic_score >= 60:
-                st.info(f"**{topic}**: {stats['count']} quizzes, {avg_topic_score:.1f}% average 📈")
-            else:
-                st.warning(f"**{topic}**: {stats['count']} quizzes, {avg_topic_score:.1f}% average 🎯")
+        st.info("No quiz sessions found.")
 
 def clear_quiz_states():
     """Clear all quiz-related states for fresh start"""
