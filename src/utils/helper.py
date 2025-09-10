@@ -4,6 +4,7 @@ import pandas as pd
 from typing import Dict
 from src.generator.question_generator import QuestionGenerator
 from src.models.simple_session import SimpleSessionManager
+from src.models.vector_db_manager import VectorDBManager # Import the new manager
 import urllib.parse
 import time
 
@@ -18,7 +19,12 @@ class QuizManager:
         self.current_session_id = None
         self.question_start_times = []
         
-        # Initialize question logger and recommendation engine safely
+        # Initialize the VectorDBManager
+        if 'user' in st.session_state and st.session_state.user:
+            self.vector_db_manager = VectorDBManager()
+        else:
+            self.vector_db_manager = None
+        
         try:
             from src.models.question_log import QuestionLogger, SmartRecommendationEngine
             self.question_logger = QuestionLogger()
@@ -70,7 +76,6 @@ class QuizManager:
         for i, q in enumerate(self.questions):
             st.markdown(f"**Question {i+1}: {q['question']}**")
             
-            # Record start time for this question
             if len(self.question_start_times) <= i:
                 self.question_start_times.append(time.time())
 
@@ -95,7 +100,6 @@ class QuizManager:
         self.results = []
 
         for i, (q, user_ans) in enumerate(zip(self.questions, self.user_answers)):
-            # Calculate time taken for this question
             time_taken = int(time.time() - self.question_start_times[i]) if i < len(self.question_start_times) else 0
             
             result_dict = {
@@ -118,14 +122,12 @@ class QuizManager:
 
             self.results.append(result_dict)
 
-        # Save session and log questions if user is logged in
         if 'user' in st.session_state and st.session_state.user and self.results:
             session_manager = SimpleSessionManager()
             
             correct_count = sum(1 for result in self.results if result["is_correct"])
             score_percentage = (correct_count / len(self.results)) * 100
             
-            # Save quiz session
             quiz_data = {
                 'topic': st.session_state.get('current_topic', ''),
                 'sub_topic': st.session_state.get('current_sub_topic', ''),
@@ -142,7 +144,19 @@ class QuizManager:
                 st.session_state.user['id'], quiz_data
             )
             
-            # Log each question individually for AI analysis (if available)
+            # --- RAG FEATURE LOGIC ---
+            # Check if score is below the user's pass score
+            pass_score = st.session_state.get('pass_score', 70)
+            if score_percentage < pass_score:
+                if self.vector_db_manager:
+                    topic_str = st.session_state.get('current_topic', 'General')
+                    if st.session_state.get('current_sub_topic'):
+                        topic_str += f" - {st.session_state.get('current_sub_topic')}"
+                    
+                    # Add the results of this failed quiz to the vector DB
+                    self.vector_db_manager.add_quiz_results_to_db(self.results, topic_str)
+            # --- END RAG FEATURE LOGIC ---
+
             if self.has_ai_features:
                 self._log_individual_questions()
     
@@ -179,7 +193,6 @@ class QuizManager:
     def get_smart_recommendations(self, user_id: int) -> Dict:
         """Get AI-powered quiz recommendations based on user history"""
         if not self.has_ai_features or not self.recommendation_engine:
-            # Return empty recommendations if AI features not available
             return {
                 'has_recommendations': False,
                 'weak_topics': [],

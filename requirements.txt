@@ -7,3 +7,5 @@ PyJWT
 altair
 faiss-cpu
 langchain-community
+langchain-huggingface
+sentence-transformers

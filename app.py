@@ -8,52 +8,83 @@ from src.models.simple_session import SimpleSessionManager
 from src.components.quiz_history_sidebar import show_quiz_history_right_sidebar, render_history_content, show_revision_view
 import pandas as pd
 from src.components.analytics_charts import plot_performance_over_time, plot_performance_by_topic
+import time
 
 load_dotenv()
 
 def show_login_signup():
-    """Show login/signup interface"""
+    """
+    Displays a polished, centered login/signup page with feature highlights.
+    This is the only part that has been visually updated.
+    """
     auth = AuthManager()
+
+    # --- Centered Header ---
+    st.image("dashboard.png", width=120)
+
+    st.title("Welcome to SmartPrepAI")
+    st.subheader("Your Personal AI-Powered Study Partner")
+    st.write("---")
+
+    # --- Feature Highlights in Columns ---
+    st.subheader("🚀 Key Features")
+    col1, col2, col3 = st.columns(3)
     
-    tab1, tab2 = st.tabs(["Login", "Sign Up"])
+    with col1:
+        with st.container(border=True):
+            st.markdown("<div style='text-align: center; padding: 10px;'>🧠<br><strong>Unlimited Quizzes</strong><br><small>Generate custom quizzes on any topic at any difficulty.</small></div>", unsafe_allow_html=True)
+
+    with col2:
+        with st.container(border=True):
+            st.markdown("<div style='text-align: center; padding: 10px;'>📊<br><strong>Track Progress</strong><br><small>A visual dashboard helps you see your improvement.</small></div>", unsafe_allow_html=True)
+
+    with col3:
+        with st.container(border=True):
+            st.markdown("<div style='text-align: center; padding: 10px;'>🎯<br><strong>Personalized Prep</strong><br><small>AI analyzes your mistakes to create targeted quizzes.</small></div>", unsafe_allow_html=True)
     
-    with tab1:
-        st.header("Login")
-        with st.form("login_form"):
-            username = st.text_input("Username")
-            password = st.text_input("Password", type="password")
-            login_btn = st.form_submit_button("Login")
+    st.write("---")
+
+    # --- Centered Login/Signup Form ---
+    _, center_col, _ = st.columns([1, 1.5, 1])
+    with center_col:
+        with st.container(border=True):
+            tab1, tab2 = st.tabs(["**Login**", "**Sign Up**"])
+            with tab1:
+                with st.form("login_form"):
+                    st.markdown("##### Login to Your Account")
+                    username = st.text_input("Username", key="login_user", label_visibility="collapsed", placeholder="Username")
+                    password = st.text_input("Password", type="password", key="login_pass", label_visibility="collapsed", placeholder="Password")
+                    login_btn = st.form_submit_button("Login", use_container_width=True, type="primary")
+                    
+                    if login_btn and username and password:
+                        user_data = auth.login_user(username, password)
+                        if user_data:
+                            st.session_state.user = {k: v for k, v in user_data.items() if k != 'token'}
+                            st.session_state.token = user_data['token']
+                            st.success("Login successful! Loading...")
+                            time.sleep(1)
+                            st.rerun()
+                        else:
+                            st.error("Invalid username or password")
             
-            if login_btn and username and password:
-                user_data = auth.login_user(username, password)
-                if user_data:
-                    # Store user info and token in session state
-                    st.session_state.user = {k: v for k, v in user_data.items() if k != 'token'}
-                    st.session_state.token = user_data['token']
-                    st.success("Login successful!")
-                    st.rerun()
-                else:
-                    st.error("Invalid username or password")
-    
-    with tab2:
-        st.header("Sign Up")
-        with st.form("signup_form"):
-            new_username = st.text_input("Choose Username")
-            new_email = st.text_input("Email")
-            new_password = st.text_input("Choose Password", type="password")
-            confirm_password = st.text_input("Confirm Password", type="password")
-            signup_btn = st.form_submit_button("Sign Up")
-            
-            if signup_btn and new_username and new_email and new_password:
-                if new_password != confirm_password:
-                    st.error("Passwords don't match")
-                elif len(new_password) < 6:
-                    st.error("Password must be at least 6 characters")
-                else:
-                    if auth.register_user(new_username, new_email, new_password):
-                        st.success("Account created successfully! Please login.")
-                    else:
-                        st.error("Username or email already exists")
+            with tab2:
+                with st.form("signup_form"):
+                    st.markdown("##### Create a New Account")
+                    new_username = st.text_input("Username", key="signup_user", label_visibility="collapsed", placeholder="Choose a Username")
+                    new_email = st.text_input("Email", key="signup_email", label_visibility="collapsed", placeholder="Your Email")
+                    new_password = st.text_input("Password", type="password", key="signup_pass", label_visibility="collapsed", placeholder="Create a Password")
+                    confirm_password = st.text_input("Confirm Password", type="password", key="signup_pass_confirm", label_visibility="collapsed", placeholder="Confirm Password")
+                    signup_btn = st.form_submit_button("Sign Up", use_container_width=True)
+                    
+                    if signup_btn and new_username and new_email and new_password:
+                        if new_password != confirm_password:
+                            st.error("Passwords don't match")
+                        elif len(new_password) < 6:
+                            st.error("Password must be at least 6 characters.")
+                        elif auth.register_user(new_username, new_email, new_password):
+                            st.success("Account created! Please log in.")
+                        else:
+                            st.error("Username or email already exists.")
 
 def check_auto_suggestions():
     """Check if user needs automatic suggestions based on recent poor performance"""
@@ -67,64 +98,59 @@ def check_auto_suggestions():
         
         user_id = st.session_state.user['id']
         
-        # Get last 10 questions from recent sessions
         recent_questions = quiz_manager.question_logger.get_recent_questions(user_id, 10)
         
-        if len(recent_questions) >= 5:  # Need at least 5 questions to analyze
-            # Group by topic + subtopic
+        if len(recent_questions) >= 5:
             topic_performance = {}
-            
             for q in recent_questions:
                 topic_key = q['topic']
                 if q.get('sub_topic'):
                     topic_key = f"{q['topic']} - {q['sub_topic']}"
-                
                 if topic_key not in topic_performance:
                     topic_performance[topic_key] = {'correct': 0, 'total': 0}
-                
                 topic_performance[topic_key]['total'] += 1
                 if q['is_correct']:
                     topic_performance[topic_key]['correct'] += 1
             
-            # Check for topics with < 50% accuracy and at least 3 attempts
             weak_topics = []
             for topic, perf in topic_performance.items():
-                if perf['total'] >= 3:  # At least 3 attempts
+                if perf['total'] >= 3:
                     accuracy = (perf['correct'] / perf['total']) * 100
                     if accuracy < 50:
-                        weak_topics.append({
-                            'topic': topic,
-                            'accuracy': accuracy,
-                            'attempts': perf['total']
-                        })
+                        weak_topics.append({'topic': topic, 'accuracy': accuracy, 'attempts': perf['total']})
             
             if weak_topics:
-                return weak_topics[0]  # Return the weakest topic
+                return weak_topics  # <-- FIX: Return the entire list of weak topics
     
     except Exception as e:
         print(f"Auto suggestion check error: {e}")
     
     return None
 
-def show_auto_suggestion_popup(weak_topic_info):
-    """Show automatic suggestion popup when user is struggling"""
-    topic = weak_topic_info['topic']
-    accuracy = weak_topic_info['accuracy']
-    attempts = weak_topic_info['attempts']
+def show_auto_suggestion_popup(weak_topics_list):
+    """Show automatic suggestion popup, allowing user to choose if multiple topics are weak."""
     
-    # Create a modal-like warning
     st.error("🎯 **Performance Alert!**")
     
     with st.container():
-        st.write(f"**Struggling with {topic}?**")
-        st.write(f"Your recent accuracy: **{accuracy:.0f}%** in {attempts} attempts")
-        st.write("💡 **Our AI recommends taking a focused practice quiz to improve!**")
+        # Let user choose which topic to focus on
+        topic_options = [wt['topic'] for wt in weak_topics_list]
         
+        if len(topic_options) > 1:
+            st.write("Our AI noticed you're struggling in a few areas. Select a topic for a focused practice quiz:")
+            chosen_topic_name = st.radio("Choose a topic to practice:", topic_options)
+        else:
+            chosen_topic_name = topic_options[0]
+            st.write(f"**Struggling with {chosen_topic_name}?** Our AI recommends a focused practice quiz to improve!")
+
+        # Find the full details of the chosen topic
+        selected_topic_info = next((item for item in weak_topics_list if item["topic"] == chosen_topic_name), None)
+
         col1, col2, col3 = st.columns([1, 1, 1])
         
         with col1:
             if st.button("🚀 Yes, Help Me!", type="primary", use_container_width=True):
-                return "ACCEPT_AUTO_SUGGESTION", weak_topic_info
+                return "ACCEPT_AUTO_SUGGESTION", selected_topic_info
         
         with col2:
             if st.button("⏭️ Skip for Now", use_container_width=True):
@@ -132,7 +158,6 @@ def show_auto_suggestion_popup(weak_topic_info):
                 
         with col3:
             if st.button("🔕 Don't Ask Again", use_container_width=True):
-                # Set a flag to not show auto suggestions for this session
                 st.session_state.disable_auto_suggestions = True
                 return "DISABLE_AUTO_SUGGESTION", None
     
@@ -141,37 +166,19 @@ def show_auto_suggestion_popup(weak_topic_info):
 def generate_quiz_from_suggestion(suggestion_data):
     """Generate quiz directly from AI suggestion"""
     try:
-        # Parse topic and subtopic
-        topic_full = suggestion_data['main_topic']
-        if suggestion_data.get('sub_topic'):
-            topic_full = f"{suggestion_data['main_topic']} - {suggestion_data['sub_topic']}"
+        topic_full = f"{suggestion_data['main_topic']} - {suggestion_data['sub_topic']}" if suggestion_data.get('sub_topic') else suggestion_data['main_topic']
+        st.session_state.current_topic, st.session_state.current_sub_topic, st.session_state.current_difficulty = suggestion_data['main_topic'], suggestion_data.get('sub_topic', ''), suggestion_data['difficulty']
         
-        # Set session state for tracking
-        st.session_state.current_topic = suggestion_data['main_topic']
-        st.session_state.current_sub_topic = suggestion_data.get('sub_topic', '')
-        st.session_state.current_difficulty = suggestion_data['difficulty']
-        
-        # Clear previous states
-        st.session_state.quiz_generated = False
-        st.session_state.quiz_submitted = False
-        
-        # Generate quiz directly
+        clear_quiz_states()
         with st.spinner("🤖 Generating personalized quiz based on your weak areas..."):
             generator = QuestionGenerator()
-            success = st.session_state.quiz_manager.generate_questions(
-                generator, 
-                topic_full,
-                suggestion_data.get('question_type', 'Multiple Choice'),
-                suggestion_data['difficulty'],
-                suggestion_data['num_questions']
-            )
+            success = st.session_state.quiz_manager.generate_questions(generator, topic_full, suggestion_data.get('question_type', 'Multiple Choice'), suggestion_data['difficulty'], suggestion_data['num_questions'])
         
         if success:
             st.session_state.quiz_generated = True
             st.success("✅ AI-powered quiz generated! Let's improve your weak areas!")
         else:
             st.error("❌ Failed to generate quiz. Please try again.")
-        
         return success
         
     except Exception as e:
@@ -181,41 +188,29 @@ def generate_quiz_from_suggestion(suggestion_data):
 def show_smart_recommendations():
     """Display AI-powered quiz recommendations with direct generation"""
     if 'user' not in st.session_state or not st.session_state.user:
-        return None, None, None, None, None
-    
-    # Only show recommendations when ready for a new quiz
+        return None, None
     if st.session_state.get('quiz_generated', False) and not st.session_state.get('quiz_submitted', False):
-        return None, None, None, None, None
+        return None, None
     
     try:
         quiz_manager = st.session_state.quiz_manager
-        if hasattr(quiz_manager, 'get_smart_recommendations'):
-            recommendations = quiz_manager.get_smart_recommendations(st.session_state.user['id'])
-        else:
-            recommendations = {'has_recommendations': False, 'motivation_message': "Take more quizzes to unlock AI recommendations!"}
+        recommendations = quiz_manager.get_smart_recommendations(st.session_state.user['id'])
         
         if recommendations['has_recommendations']:
             with st.expander("🤖 AI-Powered Quiz Recommendations", expanded=True):
                 st.info(recommendations['motivation_message'])
-                
                 suggested = recommendations.get('suggested_quiz')
                 if suggested:
                     st.write("**🎯 Recommended Quiz for You:**")
-                    
                     col1, col2 = st.columns([2, 1])
-                    
                     with col1:
                         st.write(f"**Topic:** {suggested['main_topic']}")
-                        if suggested.get('sub_topic'):
-                            st.write(f"**Sub-topic:** {suggested['sub_topic']}")
+                        if suggested.get('sub_topic'): st.write(f"**Sub-topic:** {suggested['sub_topic']}")
                         st.write(f"**Difficulty:** {suggested['difficulty']}")
                         st.write(f"**Questions:** {suggested['num_questions']}")
                         st.caption(f"💡 {suggested['reason']}")
-                    
-                    with col2:
-                        if st.button("🚀 Generate AI Quiz", type="primary"):
-                            # DIRECT QUIZ GENERATION - No parameter setting
-                            return "GENERATE_DIRECT", suggested
+                    if col2.button("🚀 Generate AI Quiz", type="primary"):
+                        return "GENERATE_DIRECT", suggested
                 
                 if recommendations.get('focus_areas'):
                     st.write("**📊 Your Performance Analysis:**")
@@ -228,7 +223,44 @@ def show_smart_recommendations():
         print(f"Smart recommendations error: {e}")
         st.info("🤖 AI recommendations will appear after you take more quizzes!")
     
-    return None, None, None, None, None
+    return None, None
+
+def handle_personalized_prep(topic_name: str):
+    """
+    Handles the RAG-based personalized quiz generation and trial usage.
+    """
+    auth = AuthManager()
+    user_id = st.session_state.user['id']
+
+    st.session_state.current_topic = topic_name
+    st.session_state.current_sub_topic = ""
+    st.session_state.current_difficulty = "Easy"
+    
+    clear_quiz_states()
+    
+    with st.spinner(f"🤖 Retrieving your weak points for '{topic_name}'..."):
+        if not st.session_state.quiz_manager.vector_db_manager.has_enough_context():
+            st.error("You don't have enough prep material yet. Fail a quiz on this topic first!")
+            time.sleep(3); return
+        context_docs = st.session_state.quiz_manager.vector_db_manager.retrieve_relevant_documents(topic_name)
+    
+    with st.spinner("🧠 Generating a personalized quiz..."):
+        try:
+            generator = QuestionGenerator()
+            questions = []
+            for _ in range(3):
+                q = generator.generate_rag_mcq(topic_name, context_docs, "Easy")
+                questions.append({'type': 'MCQ', 'question': q.question, 'options': q.options, 'correct_answer': q.correct_answer, 'explanation': getattr(q, 'explanation', '')})
+            
+            st.session_state.quiz_manager.questions = questions
+            st.session_state.quiz_generated = True
+            
+            auth.mark_rag_trial_as_used(user_id)
+            st.session_state.user['has_used_rag_trial'] = 1
+            
+            st.success("✅ Personalized quiz ready! Your free trial has been used."); time.sleep(2); st.rerun()
+        except Exception as e:
+            st.error(f"Failed to generate personalized quiz: {e}"); time.sleep(3)
 
 def show_dashboard():
     """Show user dashboard with analytics and visualizations."""
@@ -237,476 +269,216 @@ def show_dashboard():
     
     st.header(f"Welcome back, {user['username']}! 👋")
     
-    # Fetch all user sessions for analytics
     user_sessions = session_manager.get_user_sessions(user['id'], limit=1000)
-    
     if not user_sessions:
-        st.info("Your dashboard will be populated with analytics once you complete your first quiz!")
-        return
+        st.info("Your dashboard will be populated once you complete a quiz!"); return
 
-    # --- Key Metrics ---
-    total_quizzes = len(user_sessions)
-    avg_score = sum(s['score'] for s in user_sessions) / total_quizzes if total_quizzes > 0 else 0
-    
+    total_quizzes, avg_score = len(user_sessions), sum(s['score'] for s in user_sessions) / len(user_sessions) if user_sessions else 0
     from datetime import datetime, timedelta
     seven_days_ago = datetime.now() - timedelta(days=7)
     recent_sessions_count = sum(1 for s in user_sessions if datetime.strptime(s['created_at'], '%Y-%m-%d %H:%M:%S') >= seven_days_ago)
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Quizzes Taken", total_quizzes)
-    col2.metric("Average Score", f"{avg_score:.1f}%")
-    col3.metric("Quizzes This Week", recent_sessions_count)
-    
+    col1, col2, col3 = st.columns(3); col1.metric("Total Quizzes", total_quizzes); col2.metric("Average Score", f"{avg_score:.1f}%"); col3.metric("Quizzes This Week", recent_sessions_count)
     st.markdown("---")
 
-    # --- Visualizations ---
     st.subheader("📊 Your Performance Visualized")
     df = pd.DataFrame(user_sessions)
-    plot_performance_over_time(df)
-    plot_performance_by_topic(df)
-
+    plot_performance_over_time(df); plot_performance_by_topic(df)
     st.markdown("---")
 
-    # --- Areas for Improvement (Weak Topics) ---
     st.subheader("🎯 Areas for Improvement")
-    
-    # Analyze all sessions to find topics with scores below the user-set pass score
     topic_performance = {}
     for session in user_sessions:
-        # Use display_title which combines topic and sub-topic
         topic_key = session['display_title']
         if topic_key not in topic_performance:
             topic_performance[topic_key] = {'scores': [], 'count': 0}
-        topic_performance[topic_key]['scores'].append(session['score'])
-        topic_performance[topic_key]['count'] += 1
+        topic_performance[topic_key]['scores'].append(session['score']); topic_performance[topic_key]['count'] += 1
         
     weak_topics = []
-    pass_score = st.session_state.get('pass_score', 70) # Get user's pass score, default to 70
+    pass_score = st.session_state.get('pass_score', 70)
     for topic, data in topic_performance.items():
         avg_score = sum(data['scores']) / len(data['scores'])
         if avg_score < pass_score:
-            weak_topics.append({
-                "topic": topic,
-                "avg_score": avg_score,
-                "count": data['count']
-            })
+            weak_topics.append({"topic": topic, "avg_score": avg_score, "count": data['count']})
 
     if weak_topics:
-        st.warning(f"Our AI has identified topics where your average score is below your goal of {pass_score}%. Focus on these to improve!")
-        # Sort by lowest score to show the weakest topics first
+        st.warning(f"AI has identified topics below your {pass_score}% goal. Focus here!")
         for topic_data in sorted(weak_topics, key=lambda x: x['avg_score']):
-            topic_name = topic_data['topic']
-            
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                st.markdown(f"**{topic_name}**")
-                st.caption(f"Average Score: {topic_data['avg_score']:.1f}% over {topic_data['count']} quiz(zes)")
-            with col2:
-                # This button is the placeholder for our next big feature!
-                if st.button("🚀 Personalized Prep", key=f"prep_{topic_name}", help=f"Start a personalized RAG session for {topic_name}"):
-                    st.info("Personalized Preparation feature coming soon!")
-        
+            with st.container(border=True):
+                col1, col2 = st.columns([2, 1])
+                with col1:
+                    st.markdown(f"**{topic_data['topic']}**"); st.caption(f"Avg Score: {topic_data['avg_score']:.1f}% ({topic_data['count']} quizzes)")
+                with col2:
+                    if not user.get('has_used_rag_trial', False):
+                        if st.button("🚀 Prep (Free Trial)", key=f"prep_{topic_data['topic']}", use_container_width=True):
+                            handle_personalized_prep(topic_data['topic'])
+                    else:
+                        st.button("✨ Upgrade to Prep", key=f"prep_{topic_data['topic']}", disabled=True, use_container_width=True)
     else:
-        st.success("🎉 Great job! You're performing well across all your topics based on your pass score.")
-    
+        st.success("🎉 Great job! You're meeting your pass score in all topics.")
     st.markdown("---")
 
-    # --- Recent Quizzes ---
     st.subheader("📖 Recent Quiz History")
-    recent_sessions_display = user_sessions[:5]
-    
-    if recent_sessions_display:
-        for session in recent_sessions_display:
-            with st.expander(f"**{session['display_title']}** - Score: {session['score']:.1f}% ({session['short_date']})"):
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    st.write(f"**Topic:** {session['topic']}")
-                    st.write(f"**Difficulty:** {session['difficulty']}")
-                with col2:
-                    st.write(f"**Questions:** {session['num_questions']}")
-                    st.write(f"**Type:** {session['question_type']}")
-                with col3:
-                    if st.button("Review Quiz", key=f"review_{session['id']}"):
-                        st.session_state.viewing_quiz_id = session['id']
-                        st.session_state.view_mode = 'revision'
-                        st.rerun()
-    else:
-        st.info("No quiz sessions found.")
+    for session in user_sessions[:5]:
+        with st.expander(f"**{session['display_title']}** - Score: {session['score']:.1f}% ({session['short_date']})"):
+            c1, c2, c3 = st.columns(3)
+            c1.write(f"**Type:** {session['question_type']}"); c1.write(f"**Difficulty:** {session['difficulty']}")
+            c2.write(f"**Questions:** {session['num_questions']}"); c2.write(f"**Score:** {session['score']:.1f}%")
+            if c3.button(f"📖 Review Quiz", key=f"review_{session['id']}"):
+                st.session_state.viewing_quiz_id, st.session_state.view_mode = session['id'], 'revision'; st.rerun()
 
 def clear_quiz_states():
-    """Clear all quiz-related states for fresh start"""
-    st.session_state.quiz_generated = False
-    st.session_state.quiz_submitted = False
-    if hasattr(st.session_state.quiz_manager, 'questions'):
-        st.session_state.quiz_manager.questions = []
-        st.session_state.quiz_manager.user_answers = []
-        st.session_state.quiz_manager.results = []
+    st.session_state.quiz_generated, st.session_state.quiz_submitted = False, False
+    if hasattr(st.session_state.get('quiz_manager'), 'questions'):
+        st.session_state.quiz_manager.questions, st.session_state.quiz_manager.user_answers, st.session_state.quiz_manager.results = [], [], []
 
 def main():
-    st.set_page_config(page_title="StudyBuddyAI", layout="wide")
-    
+    st.set_page_config(page_title="SmartPrepAI", layout="wide")
     auth = AuthManager()
     
-    # Initialize session states ONLY if user is authenticated
     if not auth.is_authenticated():
-        st.title("StudyBuddyAI - Login Required")
-        show_login_signup()
-        return
+        show_login_signup(); return
     
-    # User is authenticated - initialize session states
-    if 'quiz_manager' not in st.session_state:
-        st.session_state.quiz_manager = QuizManager()
+    if 'quiz_manager' not in st.session_state: st.session_state.quiz_manager = QuizManager()
+    if 'quiz_generated' not in st.session_state: st.session_state.quiz_generated = False
+    if 'quiz_submitted' not in st.session_state: st.session_state.quiz_submitted = False
     
-    if 'quiz_generated' not in st.session_state:
-        st.session_state.quiz_generated = False
-    
-    if 'quiz_submitted' not in st.session_state:
-        st.session_state.quiz_submitted = False
-    
-    if 'rerun_trigger' not in st.session_state:
-        st.session_state.rerun_trigger = False
-    
-    # Check if user is viewing a quiz for revision
     if st.session_state.get('view_mode') == 'revision' and st.session_state.get('viewing_quiz_id'):
-        
-        # Create layout with right sidebar for revision mode
         col1, col2 = st.columns([3, 1])
-        
         with col1:
-            st.title("StudyBuddyAI - Quiz Revision")
+            st.title("SmartPrepAI - Quiz Revision")
             show_revision_view(st.session_state.viewing_quiz_id)
-        
-        with col2:
-            render_history_content()
-        
+        with col2: render_history_content()
         return
     
-    # Normal app flow with right sidebar toggle
-    # Header with history toggle
     col1, col2 = st.columns([6, 1])
-    
-    with col1:
-        st.title("StudyBuddyAI")
-    
+    with col1: st.title("StudyBuddyAI")
     with col2:
         if st.button("📚 History", help="Toggle quiz history"):
-            st.session_state.show_history = not st.session_state.get('show_history', False)
-            st.rerun()
+            st.session_state.show_history = not st.session_state.get('show_history', False); st.rerun()
     
-    # Left sidebar for logout only
     with st.sidebar:
-        if st.button("Logout"):
-            auth.logout()
+        if st.button("Logout"): auth.logout()
     
-    # Main layout with optional right sidebar
-    if st.session_state.get('show_history', False):
-        main_col, history_col = st.columns([3, 1])
-    else:
-        main_col = st.container()
-        history_col = None
+    main_col, history_col = st.columns([3, 1]) if st.session_state.get('show_history', False) else (st.container(), None)
     
-    # Main content area
     with main_col:
-        tab1, tab2 = st.tabs(["New Quiz", "Dashboard"])
-        
+        tab1, tab2 = st.tabs(["**New Quiz**", "**Dashboard**"])
         with tab1:
-            # Check for auto-suggestions first (if not disabled)
             auto_suggestion_result = None, None
             if not st.session_state.get('disable_auto_suggestions', False):
                 weak_topic = check_auto_suggestions()
                 if weak_topic and not st.session_state.get('quiz_generated', False) and not st.session_state.get('quiz_submitted', False):
                     auto_suggestion_result = show_auto_suggestion_popup(weak_topic)
             
-            # Handle auto-suggestion responses
-            if auto_suggestion_result[0] == "ACCEPT_AUTO_SUGGESTION":
-                # Generate quiz directly from weak topic
-                weak_info = auto_suggestion_result[1]
-                topic_parts = weak_info['topic'].split(' - ', 1)
-                main_topic = topic_parts[0]
-                sub_topic = topic_parts[1] if len(topic_parts) > 1 else ""
-                
-                suggestion_data = {
-                    'main_topic': main_topic,
-                    'sub_topic': sub_topic,
-                    'difficulty': 'Easy',  # Start with easy for struggling topics
-                    'question_type': 'Multiple Choice',
-                    'num_questions': 5,
-                    'reason': f'Auto-suggested due to {weak_info["accuracy"]:.0f}% accuracy'
-                }
-                
-                generate_quiz_from_suggestion(suggestion_data)
-                st.rerun()
-                
-            elif auto_suggestion_result[0] in ["SKIP_AUTO_SUGGESTION", "DISABLE_AUTO_SUGGESTION"]:
+            action, data = auto_suggestion_result
+            if action == "ACCEPT_AUTO_SUGGESTION":
+                topic_parts = data['topic'].split(' - ', 1)
+                suggestion_data = {'main_topic': topic_parts[0], 'sub_topic': topic_parts[1] if len(topic_parts) > 1 else "", 'difficulty': 'Easy', 'question_type': 'Multiple Choice', 'num_questions': 5}
+                generate_quiz_from_suggestion(suggestion_data); st.rerun()
+            elif action in ["SKIP_AUTO_SUGGESTION", "DISABLE_AUTO_SUGGESTION"]:
                 st.rerun()
             
-            # Show AI recommendations (if no auto-suggestion is active)
             if not weak_topic or st.session_state.get('disable_auto_suggestions', False):
                 if not st.session_state.get('quiz_generated', False) or st.session_state.get('quiz_submitted', False):
-                    ai_result = show_smart_recommendations()
-                    
-                    # Handle direct AI quiz generation
-                    if ai_result and ai_result[0] == "GENERATE_DIRECT":
-                        generate_quiz_from_suggestion(ai_result[1])
-                        st.rerun()
+                    action, data = show_smart_recommendations()
+                    if action == "GENERATE_DIRECT":
+                        generate_quiz_from_suggestion(data); st.rerun()
             
-            # Quiz settings in left sidebar
             with st.sidebar:
                 st.header("Quiz Settings")
-                
-                default_topic_index = 0
-                default_difficulty_index = 1
-                default_type_index = 0
-                default_questions = 5
-                
-                # Check for retake settings
-                if 'retake_topic' in st.session_state:
-                    topics = ["Operating Systems", "Computer Networks", "DBMS", "DSA", "OOPs", 
-                             "Machine Learning", "Software Engineering", "C++", "Java", "Javascript", "Python"]
-                    if st.session_state.retake_topic in topics:
-                        default_topic_index = topics.index(st.session_state.retake_topic)
-                    
-                    difficulties = ["Easy", "Medium", "Hard"]
-                    if st.session_state.retake_difficulty in difficulties:
-                        default_difficulty_index = difficulties.index(st.session_state.retake_difficulty)
-                    
-                    question_types = ["Multiple Choice", "Fill in the Blank"]
-                    if st.session_state.retake_type in question_types:
-                        default_type_index = question_types.index(st.session_state.retake_type)
-                    
-                    default_questions = st.session_state.retake_questions
-                    
-                    st.info("🔄 Retake settings loaded")
-                    
-                    del st.session_state.retake_topic
-                    del st.session_state.retake_difficulty
-                    del st.session_state.retake_type
-                    del st.session_state.retake_questions
-                
-                question_type = st.selectbox(
-                    "Select Question Type",
-                    ["Multiple Choice", "Fill in the Blank"],
-                    index=default_type_index
-                )
-                
-                main_topic = st.selectbox(
-                    "Select Main Topic",
-                    ["Operating Systems", "Computer Networks", "DBMS", "DSA", "OOPs", 
-                     "Machine Learning", "Software Engineering", "C++", "Java", "Javascript", "Python"],
-                    index=default_topic_index
-                )
-                
-                sub_topic = st.text_input(
-                    "Enter Sub-topic",
-                    placeholder="e.g., Paging, TCP/IP, Normalization"
-                )
-                
-                if sub_topic:
-                    topic = f"{main_topic} - {sub_topic}"
-                    st.session_state.current_sub_topic = sub_topic
-                else:
-                    topic = main_topic
-                    st.session_state.current_sub_topic = ""
-                    
-                st.session_state.current_topic = main_topic
-                
-                difficulty = st.selectbox(
-                    "Difficulty Level",
-                    ["Easy", "Medium", "Hard"],
-                    index=default_difficulty_index
-                )
+                question_type = st.selectbox("Select Question Type", ["Multiple Choice", "Fill in the Blank"])
+                main_topic = st.selectbox("Select Main Topic", ["Operating Systems", "Computer Networks", "DBMS", "DSA", "OOPs", "Machine Learning", "Software Engineering", "C++", "Java", "Javascript", "Python"])
+                sub_topic = st.text_input("Enter Sub-topic", placeholder="e.g., Paging, TCP/IP, Normalization")
+                topic = f"{main_topic} - {sub_topic}" if sub_topic else main_topic
+                st.session_state.current_topic, st.session_state.current_sub_topic = main_topic, sub_topic
+                difficulty = st.selectbox("Difficulty Level", ["Easy", "Medium", "Hard"], index=1)
                 st.session_state.current_difficulty = difficulty
-                
-                num_questions = st.number_input(
-                    "Number of Questions",
-                    min_value=1, max_value=10, value=default_questions
-                )
-
-                pass_score = st.slider(
-                    "Set Your Pass Score (%)",
-                    min_value=30, max_value=90, value=60, step=5,
-                    help="Set the score you want to achieve to consider a topic 'mastered'."
-                )
+                num_questions = st.number_input("Number of Questions", 1, 10, 5)
+                pass_score = st.slider("Set Your Pass Score (%)", 30, 90, 70, 5, help="Set the score you want to achieve to consider a topic 'mastered'.")
                 st.session_state.pass_score = pass_score
                 
                 if st.button("Generate Quiz", type="primary"):
-                    # Clear previous states before generating new quiz
                     clear_quiz_states()
-                    
                     with st.spinner("🤖 AI is generating personalized questions..."):
-                        try:
-                            generator = QuestionGenerator()
-                            success = st.session_state.quiz_manager.generate_questions(
-                                generator, topic, question_type, difficulty, num_questions
-                            )
-                        except Exception as e:
-                            st.error(f"❌ Question generation failed: {e}")
-                            st.info("💡 Tip: Check your internet connection and API settings")
-                            success = False
-                    
+                        generator = QuestionGenerator()
+                        success = st.session_state.quiz_manager.generate_questions(generator, topic, question_type, difficulty, num_questions)
                     st.session_state.quiz_generated = success
-                    if success:
-                        st.success("✅ Quiz generated successfully!")
+                    if success: st.success("✅ Quiz generated successfully!")
                     st.rerun()
             
-            # Show quiz content ONLY if quiz is generated and not submitted
             if st.session_state.quiz_generated and not st.session_state.quiz_submitted:
-                if st.session_state.quiz_manager.questions:
-                    st.header("📝 Quiz Time!")
-                    
-                    # Show if it's an AI-generated quiz
-                    if hasattr(st.session_state, 'current_topic'):
-                        topic_display = st.session_state.current_topic
-                        if st.session_state.get('current_sub_topic'):
-                            topic_display += f" - {st.session_state.current_sub_topic}"
-                        st.write(f"**🤖 Topic:** {topic_display} | **Difficulty:** {st.session_state.get('current_difficulty', 'Medium')} | **Questions:** {len(st.session_state.quiz_manager.questions)}")
-                    
-                    st.session_state.quiz_manager.attempt_quiz()
-                    
-                    col1, col2, col3 = st.columns([1, 2, 1])
-                    with col2:
-                        if st.button("🎯 Submit Quiz", type="primary", use_container_width=True):
-                            with st.spinner("🔍 Evaluating your answers..."):
-                                st.session_state.quiz_manager.evaluate_quiz()
-                                st.session_state.quiz_submitted = True
-                            st.rerun()
+                st.header("📝 Quiz Time!")
+                topic_display = st.session_state.current_topic
+                if st.session_state.get('current_sub_topic'): topic_display += f" - {st.session_state.current_sub_topic}"
+                st.write(f"**🤖 Topic:** {topic_display} | **Difficulty:** {st.session_state.get('current_difficulty', 'Medium')} | **Questions:** {len(st.session_state.quiz_manager.questions)}")
+                st.session_state.quiz_manager.attempt_quiz()
+                
+                col1, col2, col3 = st.columns([1, 2, 1])
+                with col2:
+                    if st.button("🎯 Submit Quiz", type="primary", use_container_width=True):
+                        with st.spinner("🔍 Evaluating your answers..."):
+                            st.session_state.quiz_manager.evaluate_quiz()
+                            st.session_state.quiz_submitted = True
+                        st.rerun()
             
-            # Show results and quick continue option
             elif st.session_state.quiz_submitted:
                 st.header("📊 Quiz Results")
                 results_df = st.session_state.quiz_manager.generate_result_dataframe()
-                
                 if not results_df.empty:
-                    correct_count = results_df["is_correct"].sum()
-                    total_questions = len(results_df)
-                    score_percentage = (correct_count/total_questions)*100
-                    
-                    # Quick action buttons at the top for continuous practice
+                    correct, total, score = results_df["is_correct"].sum(), len(results_df), (results_df["is_correct"].sum()/len(results_df))*100
                     st.subheader("🚀 Quick Actions")
                     col1, col2, col3, col4 = st.columns(4)
-                    
                     with col1:
                         if st.button("🔄 Same Topic Again", use_container_width=True):
-                            # Keep same settings, generate new quiz
-                            current_topic = st.session_state.get('current_topic', 'DSA')
-                            current_sub_topic = st.session_state.get('current_sub_topic', '')
-                            topic_full = f"{current_topic} - {current_sub_topic}" if current_sub_topic else current_topic
-                            
+                            topic_full = f"{st.session_state.get('current_topic', 'DSA')} - {st.session_state.get('current_sub_topic', '')}" if st.session_state.get('current_sub_topic') else st.session_state.get('current_topic', 'DSA')
                             clear_quiz_states()
-                            
-                            with st.spinner("🔄 Generating another quiz on the same topic..."):
+                            with st.spinner("🔄 Generating another quiz..."):
                                 generator = QuestionGenerator()
-                                success = st.session_state.quiz_manager.generate_questions(
-                                    generator, topic_full, "Multiple Choice", 
-                                    st.session_state.get('current_difficulty', 'Medium'), 5
-                                )
-                                if success:
-                                    st.session_state.quiz_generated = True
+                                success = st.session_state.quiz_manager.generate_questions(generator, topic_full, "Multiple Choice", st.session_state.get('current_difficulty', 'Medium'), 5)
+                                if success: st.session_state.quiz_generated = True
                             st.rerun()
-                    
                     with col2:
                         if st.button("⬆️ Increase Difficulty", use_container_width=True):
-                            # Increase difficulty and generate
-                            current_diff = st.session_state.get('current_difficulty', 'Easy')
-                            next_diff = {'Easy': 'Medium', 'Medium': 'Hard', 'Hard': 'Hard'}[current_diff]
+                            next_diff = {'Easy': 'Medium', 'Medium': 'Hard', 'Hard': 'Hard'}[st.session_state.get('current_difficulty', 'Easy')]
                             st.session_state.current_difficulty = next_diff
-                            
-                            current_topic = st.session_state.get('current_topic', 'DSA')
-                            current_sub_topic = st.session_state.get('current_sub_topic', '')
-                            topic_full = f"{current_topic} - {current_sub_topic}" if current_sub_topic else current_topic
-                            
+                            topic_full = f"{st.session_state.get('current_topic', 'DSA')} - {st.session_state.get('current_sub_topic', '')}" if st.session_state.get('current_sub_topic') else st.session_state.get('current_topic', 'DSA')
                             clear_quiz_states()
-                            
-                            with st.spinner(f"⬆️ Generating {next_diff} difficulty quiz..."):
+                            with st.spinner(f"⬆️ Generating {next_diff} quiz..."):
                                 generator = QuestionGenerator()
-                                success = st.session_state.quiz_manager.generate_questions(
-                                    generator, topic_full, "Multiple Choice", next_diff, 5
-                                )
-                                if success:
-                                    st.session_state.quiz_generated = True
+                                success = st.session_state.quiz_manager.generate_questions(generator, topic_full, "Multiple Choice", next_diff, 5)
+                                if success: st.session_state.quiz_generated = True
                             st.rerun()
-                    
                     with col3:
                         if st.button("🤖 AI Suggestion", use_container_width=True):
-                            # Clear states and show AI recommendation
-                            clear_quiz_states()
-                            st.rerun()
-                    
+                            clear_quiz_states(); st.rerun()
                     with col4:
                         if st.button("📊 View Progress", use_container_width=True):
-                            st.info("👆 Switch to Dashboard tab to see detailed progress!")
+                            st.info("👆 Switch to Dashboard tab!")
                     
-                    # Enhanced score display
                     col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Score", f"{score_percentage:.1f}%")
-                    with col2:
-                        st.metric("Correct", f"{correct_count}/{total_questions}")
-                    with col3:
-                        improvement = "📈" if score_percentage >= st.session_state.get('pass_score', 70) else "🎯"
-                        st.metric("Status", f"{improvement} Keep going!")
+                    col1.metric("Score", f"{score:.1f}%"); col2.metric("Correct", f"{correct}/{total}"); col3.metric("Status", "📈 Keep going!" if score >= 60 else "🎯 Opportunity to improve!")
                     
-                    # Show score message
-                    if score_percentage >= 80:
-                        st.success(f"🎉 Excellent! Score: {score_percentage:.1f}% - You're mastering this topic!")
-                    elif score_percentage >= 60:
-                        st.info(f"👍 Good job! Score: {score_percentage:.1f}% - Keep up the great work!")
-                    else:
-                        st.warning(f"📚 Score: {score_percentage:.1f}% - Perfect opportunity to learn and improve!")
+                    if score >= 80: st.success(f"🎉 Excellent! Score: {score:.1f}%")
+                    elif score >= 60: st.info(f"👍 Good job! Score: {score:.1f}%")
+                    else: st.warning(f"📚 Score: {score:.1f}% - A chance to learn and improve!")
                     
                     st.subheader("🔍 Detailed Results with AI Explanations")
                     for _, result in results_df.iterrows():
-                        question_num = result['question_number']
-                        
-                        if result['is_correct']:
-                            st.success(f"✅ **Question {question_num}**: {result['question']}")
-                        else:
-                            st.error(f"❌ **Question {question_num}**: {result['question']}")
-                            st.write(f"**Your answer:** {result['user_answer']}")
-                            st.write(f"**Correct answer:** {result['correct_answer']}")
-                        
-                        if result.get('explanation'):
-                            st.info(f"💡 **AI Explanation:** {result['explanation']}")
-                        
-                        topic_name = st.session_state.get('current_topic', 'General')
-                        ai_links = st.session_state.quiz_manager.generate_ai_links(
-                            result['question'], 
-                            result['correct_answer'], 
-                            topic_name, 
-                            result['user_answer']
-                        )
-                        
+                        if result['is_correct']: st.success(f"✅ **Q{result['question_number']}:** {result['question']}")
+                        else: st.error(f"❌ **Q{result['question_number']}:** {result['question']}"); st.write(f"Your: `{result['user_answer']}` | Correct: `{result['correct_answer']}`")
+                        if result.get('explanation'): st.info(f"💡 **AI Explanation:** {result['explanation']}")
+                        ai_links = st.session_state.quiz_manager.generate_ai_links(result['question'], result['correct_answer'], st.session_state.get('current_topic', 'General'), result['user_answer'])
                         st.write("**🤖 Need deeper understanding? Ask AI assistants:**")
-                        col1, col2, col3, col4 = st.columns(4)
-                        
-                        with col1:
-                            st.markdown(f"[💬 ChatGPT]({ai_links['chatgpt']})")
-                        with col2:
-                            st.markdown(f"[✨ Gemini]({ai_links['gemini']})")
-                        with col3:
-                            st.markdown(f"[🧠 Claude]({ai_links['claude']})")
-                        with col4:
-                            st.markdown(f"[🔍 Perplexity]({ai_links['perplexity']})")
-                        
+                        c1, c2, c3, c4 = st.columns(4)
+                        c1.markdown(f"[💬 ChatGPT]({ai_links['chatgpt']})"); c2.markdown(f"[✨ Gemini]({ai_links['gemini']})"); c3.markdown(f"[🧠 Claude]({ai_links['claude']})"); c4.markdown(f"[🔍 Perplexity]({ai_links['perplexity']})")
                         st.markdown("---")
-                    
-                    # Show updated AI recommendations after quiz
-                    st.markdown("---")
-                    try:
-                        new_recommendations = st.session_state.quiz_manager.get_smart_recommendations(st.session_state.user['id'])
-                        if new_recommendations['has_recommendations']:
-                            st.info("🤖 **Updated AI Recommendations:**")
-                            st.write(new_recommendations['motivation_message'])
-                    except:
-                        pass
         
         with tab2:
             show_dashboard()
     
-    # Right sidebar for history
     if history_col:
-        with history_col:
-            render_history_content()
+        with history_col: render_history_content()
 
 if __name__ == "__main__":
     main()

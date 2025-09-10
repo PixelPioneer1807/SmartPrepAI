@@ -37,3 +37,22 @@ fill_blank_prompt_template = PromptTemplate(
     ),
     input_variables=["topic", "difficulty"]
 )
+rag_prompt_template = PromptTemplate(
+    template=(
+        "You are an AI tutor. Your task is to create a new multiple-choice question to help a student learn from their past mistakes.\n\n"
+        "The student is studying the topic: '{topic}'.\n\n"
+        "Here are some examples of questions the student answered incorrectly in the past:\n"
+        "--- CONTEXT ---\n"
+        "{context}\n"
+        "--- END CONTEXT ---\n\n"
+        "Based on the context of their previous errors, generate a new, conceptually similar multiple-choice question to test their understanding of the underlying principles.\n"
+        "The question should be of '{difficulty}' difficulty.\n\n"
+        "Return ONLY a JSON object with these exact fields: (strict)\n"
+        "- 'question': A clear, specific question that targets a weak area from the context.\n"
+        "- 'options': An array of exactly 4 possible answers.\n"
+        "- 'correct_answer': One of the options that is the correct answer.\n"
+        "- 'explanation': A concise explanation (2-3 sentences) of why the correct answer is right.\n\n"
+        "Your response:"
+    ),
+    input_variables=["topic", "context", "difficulty"]
+)
