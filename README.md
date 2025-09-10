@@ -1,244 +1,129 @@
-# 🧠 SmartPrep AI
+# 🧠 SmartPrepAI
 
-**Intelligent AI-Powered Educational Platform with Adaptive Learning**
+**An intelligent, SaaS-ready educational platform featuring a Retrieval-Augmented Generation (RAG) pipeline for truly personalized learning.**
 
-> **🚀 Live Application**: [https://smartprepai-149283199537.us-central1.run.app](https://smartprepai-149283199537.us-central1.run.app)
-
----
-
-## 🌟 **Project Overview**
-
-SmartPrep AI is a **production-ready, intelligent educational platform** that leverages advanced AI recommendation systems to deliver personalized learning experiences. Built with modern cloud-native architecture, it demonstrates enterprise-grade deployment practices from containerization to global scaling.
-
-### **🎯 Key Innovation: Intelligent Recommendation Engine**
-Unlike basic AI question generators, SmartPrep AI implements a **sophisticated recommendation system** that:
-- Analyzes user behavior patterns for personalized content curation
-- Adapts question difficulty based on individual learning progress  
-- Uses advanced LLM prompt engineering for contextual content generation
-- Delivers superior learning outcomes through intelligent content optimization
+> **🚀 Live Application**: [https://smartprepai-149283199537.us-central1.run.app](https://smartprepai-1492831dcb3d0bc00ef8bec3d2d175c824865fcb6.us-central1.run.app)
 
 ---
 
-## 🏗️ **Architecture & Technology Stack**
+## 🌟 Project Overview
+
+SmartPrepAI is a production-ready, AI-powered study platform that has evolved beyond simple question generation. It now implements a sophisticated **Retrieval-Augmented Generation (RAG)** pipeline, creating a deeply personalized and adaptive learning experience. The application is built with a modern, cloud-native architecture and includes SaaS-ready features like a one-time free trial for its premium capabilities.
+
+### 🎯 Key Innovation: Personalized Prep with RAG
+Unlike basic quiz generators, SmartPrepAI's core innovation is its **Personalized Prep** system:
+- **Learns from Mistakes:** When a user fails to meet their personally set pass score, the application saves the questions they got wrong into a dedicated **vector database**.
+- **Contextual Retrieval:** For a personalized session, it retrieves the user's specific past mistakes related to a topic.
+- **Targeted Generation (RAG):** The AI uses the retrieved mistakes as context to generate a brand-new, targeted quiz designed to address the user's unique weak points.
+
+---
+
+## ✨ Features
+
+- **Secure JWT Authentication:** Stateful, secure user registration and login using JSON Web Tokens.
+- **Standard Quiz Generation:** Create unlimited quizzes on a wide range of technical subjects with varying difficulty levels.
+- **Enhanced Analytics Dashboard:** An interactive dashboard with visualizations tracking performance over time and average scores by topic.
+- **Custom Pass Score:** Users can set their own personal goal for what constitutes a "passing" score.
+- **Performance Alerts:** A proactive alert system that analyzes a user's last 10 questions and suggests a focused quiz if it detects a drop in performance.
+- **🚀 Personalized Prep (Premium RAG Feature):**
+  - Automatically saves the context of incorrectly answered questions to a user-specific FAISS vector store.
+  - Generates highly targeted review quizzes based on this stored context.
+  - **SaaS-Ready:** Includes a **one-time free trial** for this premium feature, with logic to disable it after use, paving the way for a subscription model.
+
+---
+
+## 🏗️ Architecture & Technology Stack
 
 ### **Backend & AI**
-- **Python 3.11** - Core application development
+- **Python 3.12** - Core application development
 - **Streamlit** - Responsive web interface
-- **LangChain** - Advanced LLM orchestration framework
+- **LangChain** - Advanced LLM orchestration and RAG pipeline framework
 - **Groq API** - High-speed LLM inference for question generation
-- **SQLite** - User authentication and data management
+- **Authentication:** **JWT (JSON Web Tokens)** for secure, stateless sessions
+- **Database:**
+    - **SQLite** - User authentication, session management, and SaaS feature tracking.
+    - **FAISS Vector Store** - For storing and retrieving text embeddings of user mistakes.
+- **Embeddings:** `sentence-transformers` for creating vector representations of text.
 
 ### **DevOps & Infrastructure**
 - **Docker** - Containerized application deployment
-- **Kubernetes** - Local container orchestration
-- **Google Cloud Run** - Serverless production deployment
+- **Google Cloud Run** - Serverless production deployment with auto-scaling
 - **Google Container Registry** - Docker image management
-- **Auto-scaling** - 0-10 instances based on demand
-
-### **Production Features**
-- **Global HTTPS accessibility** with automatic SSL
-- **User authentication system** with secure session management
-- **Real-time AI processing** with <3s response times
-- **Cost-optimized scaling** (scales to zero when idle)
-- **Production monitoring** and logging integration
 
 ---
 
-## 🚀 **Live Demo**
-
-**🌍 Access SmartPrep AI globally**: [https://smartprepai-149283199537.us-central1.run.app](https://smartprepai-149283199537.us-central1.run.app)
-
-### **Features to Explore:**
-1. **User Registration & Authentication** - Secure account creation
-2. **Intelligent Question Generation** - AI-powered content creation
-3. **Adaptive Learning Interface** - Responsive design across devices
-4. **Real-time Processing** - Instant AI responses
-
----
-
-## 🛠️ **Local Development Setup**
+## 🛠️ Local Development Setup
 
 ### **Prerequisites**
 - Python 3.11+
 - Docker Desktop
-- Minikube (for Kubernetes testing)
-- Google Cloud CLI (for deployment)
 
 ### **Quick Start**
-Clone repository
-git clone https://github.com/PixelPioneer1807/SmartPrepAI.git
-cd SmartPrepAI
+1.  **Clone the repository:**
+    ```bash
+    git clone [https://github.com/PixelPioneer1807/SmartPrepAI.git](https://github.com/PixelPioneer1807/SmartPrepAI.git)
+    cd SmartPrepAI
+    ```
 
-Install dependencies
-pip install -r requirements.txt
+2.  **Install dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-Set up environment variables
-echo "GROQ_API_KEY=your_groq_api_key_here" > .env
+3.  **Set up environment variables:**
+    Create a `.env` file in the root directory and add your keys:
+    ```
+    GROQ_API_KEY="your_groq_api_key_here"
+    JWT_SECRET_KEY="your_strong_secret_key_here"
+    ```
 
-Run locally
-streamlit run app.py
-
-
-**Access locally**: `http://localhost:8501`
-
----
-
-## 🐳 **Container Deployment**
-
-### **Docker Build & Run**
-Build Docker image
-docker build -t smartprepai:latest .
-
-Run container locally
-docker run -p 8501:8501 --env-file .env smartprepai:latest
-
-Tag for Google Container Registry
-docker tag smartprepai:latest gcr.io/YOUR_PROJECT_ID/smartprepai:latest
-
-
-### **Kubernetes Deployment**
-Deploy to local Kubernetes
-kubectl apply -f k8s/deployment.yaml
-kubectl apply -f k8s/service.yaml
-
-Access via NodePort
-minikube service smartprepai-service --url
-
+4.  **Run the application:**
+    ```bash
+    streamlit run app.py
+    ```
 
 ---
 
-## ☁️ **Google Cloud Production Deployment**
+## ☁️ Google Cloud Production Deployment
 
-### **Cloud Run Deployment**
-Configure Google Cloud
-gcloud config set project YOUR_PROJECT_ID
-gcloud services enable run.googleapis.com containerregistry.googleapis.com
+The application is designed for easy deployment on Google Cloud Run.
 
-Push image to registry
-docker push gcr.io/YOUR_PROJECT_ID/smartprepai:latest
-
-Deploy to Cloud Run
-gcloud run deploy smartprepai
---image gcr.io/YOUR_PROJECT_ID/smartprepai:latest
---platform managed
---region us-central1
---allow-unauthenticated
---set-env-vars GROQ_API_KEY=your_api_key
---memory 1Gi
---cpu 1
---min-instances 0
---max-instances 10
---port 8501
-
-
----
-
-## 🎯 **Technical Achievements**
-
-### **AI & Machine Learning**
-- **Advanced LLM Integration** - Groq API with custom prompt engineering
-- **Intelligent Recommendation System** - User behavior analysis for personalization
-- **Real-time Processing** - Sub-3-second AI response times
-- **Contextual Content Curation** - Dynamic difficulty adaptation
-
-### **DevOps & Cloud Engineering**
-- **Container Orchestration** - Docker + Kubernetes deployment pipeline
-- **Serverless Architecture** - Google Cloud Run with auto-scaling
-- **Production Monitoring** - Comprehensive logging and metrics
-- **Cost Optimization** - Efficient resource utilization and scaling policies
-
-### **Software Engineering**
-- **Clean Architecture** - Modular, maintainable codebase
-- **Security Implementation** - Secure authentication and API key management
-- **Responsive Design** - Cross-device compatibility
-- **Production Readiness** - Error handling and user experience optimization
+1.  **Configure Google Cloud:**
+    ```bash
+    gcloud config set project YOUR_PROJECT_ID
+    gcloud services enable run.googleapis.com containerregistry.googleapis.com
+    ```
+2.  **Build and Push the Docker Image:**
+    ```bash
+    docker build -t gcr.io/YOUR_PROJECT_ID/smartprepai:latest .
+    docker push gcr.io/YOUR_PROJECT_ID/smartprepai:latest
+    ```
+3.  **Deploy to Cloud Run:**
+    ```bash
+    gcloud run deploy smartprepai \
+      --image gcr.io/YOUR_PROJECT_ID/smartprepai:latest \
+      --platform managed \
+      --region us-central1 \
+      --allow-unauthenticated \
+      --set-env-vars GROQ_API_KEY="your_api_key",JWT_SECRET_KEY="your_cloud_secret_key"
+    ```
 
 ---
 
-## 💡 **Key Innovations**
+## 🚀 Future Enhancements
 
-### **🧠 Intelligent Recommendation Engine**
-SmartPrep AI goes beyond simple question generation by implementing a sophisticated AI recommendation system that:
-
-- **Behavioral Analysis**: Tracks user interaction patterns to understand learning preferences
-- **Adaptive Difficulty**: Dynamically adjusts question complexity based on performance
-- **Personalized Content**: Tailors question types and topics to individual learning goals
-- **Continuous Optimization**: Uses feedback loops to improve recommendation accuracy
-
-### **🏗️ Production-Grade Architecture**
-- **Microservices Design**: Containerized components for scalability and maintainability
-- **Cloud-Native Deployment**: Leverages Google Cloud Run for global accessibility
-- **Auto-Scaling Infrastructure**: Handles 1-10,000+ concurrent users efficiently
-- **Cost-Effective Operations**: Scales to zero during idle periods
+- [ ] **Stripe Integration:** Implement a payment gateway to convert the free trial into a full subscription.
+- [ ] **Database Migration:** Upgrade from SQLite to PostgreSQL for better concurrency and scalability.
+- [ ] **Advanced User Roles:** Introduce teacher/admin roles to create and assign quizzes to students.
+- [ ] **Gamification:** Add points, badges, and leaderboards to increase user engagement.
 
 ---
 
-## 📊 **Performance Metrics**
-
-- **Response Time**: < 3 seconds for AI-generated content
-- **Scalability**: 0-10 auto-scaling instances based on demand
-- **Availability**: 99.9% uptime with Google Cloud Run SLA
-- **Global Access**: Worldwide accessibility via HTTPS
-- **Cost Efficiency**: Pay-per-use serverless architecture
-
----
-
-## 🔧 **Configuration**
-
-### **Environment Variables**
-GROQ_API_KEY=your_groq_api_key_here
-PORT=8501
-ENVIRONMENT=production
-
-
-### **Docker Configuration**
-- **Base Image**: `python:3.11-slim`
-- **Port**: 8501 (configurable via PORT env var)
-- **Memory**: 1GB recommended
-- **CPU**: 1 vCPU sufficient for moderate load
-
----
-
-## 🚀 **Future Enhancements**
-
-- [ ] **Database Migration** - PostgreSQL for enhanced concurrent user support
-- [ ] **Advanced Analytics** - Learning progress tracking and insights
-- [ ] **Multi-Language Support** - Internationalization capabilities
-- [ ] **Mobile Application** - Native iOS/Android companion apps
-- [ ] **API Development** - RESTful APIs for third-party integrations
-
----
-
-## 🤝 **Contributing**
-
-Contributions are welcome! Please feel free to submit pull requests or open issues for bugs and feature requests.
-
-### **Development Workflow**
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 👨‍💻 **Author**
+## 👨‍💻 Author
 
 **Shivam Kumar Srivastava**
 - GitHub: [@PixelPioneer1807](https://github.com/PixelPioneer1807)
-- Email: thisisshivam18@gmail.com
-
----
-
-## **Acknowledgments**
-
-- **Groq** for high-performance LLM inference APIs
-- **Google Cloud** for reliable serverless infrastructure
-- **Streamlit** for rapid web application development
-- **LangChain** for powerful LLM orchestration capabilities
 
 ---
 
 **⭐ If you found this project helpful, please consider giving it a star!**
-
-[![GitHub stars](https://img.shields.io/github/stars/PixelPioneer1807/SmartPrepAI?style=social)](https://github.com/PixelPioneer1807/SmartPrepAI/stargazers)
