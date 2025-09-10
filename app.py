@@ -1,14 +1,13 @@
 import os
 import streamlit as st
 from dotenv import load_dotenv
-# Add these with your other imports
-import pandas as pd
-from src.components.analytics_charts import plot_performance_over_time, plot_performance_by_topic
 from src.utils.helper import *
 from src.generator.question_generator import QuestionGenerator
 from src.models.auth import AuthManager
 from src.models.simple_session import SimpleSessionManager
 from src.components.quiz_history_sidebar import show_quiz_history_right_sidebar, render_history_content, show_revision_view
+import pandas as pd
+from src.components.analytics_charts import plot_performance_over_time, plot_performance_by_topic
 
 load_dotenv()
 
@@ -33,7 +32,6 @@ def show_login_signup():
                     st.session_state.token = user_data['token']
                     st.success("Login successful!")
                     st.rerun()
-                    st.write(st.session_state)
                 else:
                     st.error("Invalid username or password")
     
@@ -272,7 +270,7 @@ def show_dashboard():
     # --- Areas for Improvement (Weak Topics) ---
     st.subheader("🎯 Areas for Improvement")
     
-    # Analyze all sessions to find topics with scores below 70%
+    # Analyze all sessions to find topics with scores below the user-set pass score
     topic_performance = {}
     for session in user_sessions:
         # Use display_title which combines topic and sub-topic
@@ -283,9 +281,10 @@ def show_dashboard():
         topic_performance[topic_key]['count'] += 1
         
     weak_topics = []
+    pass_score = st.session_state.get('pass_score', 70) # Get user's pass score, default to 70
     for topic, data in topic_performance.items():
         avg_score = sum(data['scores']) / len(data['scores'])
-        if avg_score < 70:
+        if avg_score < pass_score:
             weak_topics.append({
                 "topic": topic,
                 "avg_score": avg_score,
@@ -293,7 +292,7 @@ def show_dashboard():
             })
 
     if weak_topics:
-        st.warning("Our AI has identified some topics where you could improve. Focus on these to boost your skills!")
+        st.warning(f"Our AI has identified topics where your average score is below your goal of {pass_score}%. Focus on these to improve!")
         # Sort by lowest score to show the weakest topics first
         for topic_data in sorted(weak_topics, key=lambda x: x['avg_score']):
             topic_name = topic_data['topic']
@@ -308,7 +307,7 @@ def show_dashboard():
                     st.info("Personalized Preparation feature coming soon!")
         
     else:
-        st.success("🎉 Great job! You're performing well across all your topics.")
+        st.success("🎉 Great job! You're performing well across all your topics based on your pass score.")
     
     st.markdown("---")
 
@@ -522,6 +521,13 @@ def main():
                     "Number of Questions",
                     min_value=1, max_value=10, value=default_questions
                 )
+
+                pass_score = st.slider(
+                    "Set Your Pass Score (%)",
+                    min_value=30, max_value=90, value=60, step=5,
+                    help="Set the score you want to achieve to consider a topic 'mastered'."
+                )
+                st.session_state.pass_score = pass_score
                 
                 if st.button("Generate Quiz", type="primary"):
                     # Clear previous states before generating new quiz
@@ -637,7 +643,7 @@ def main():
                     with col2:
                         st.metric("Correct", f"{correct_count}/{total_questions}")
                     with col3:
-                        improvement = "📈" if score_percentage >= 60 else "🎯"
+                        improvement = "📈" if score_percentage >= st.session_state.get('pass_score', 70) else "🎯"
                         st.metric("Status", f"{improvement} Keep going!")
                     
                     # Show score message
