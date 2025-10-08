@@ -3,6 +3,7 @@
 **An intelligent, SaaS-ready educational platform featuring a Retrieval-Augmented Generation (RAG) pipeline for truly personalized learning.**
 
 > **🚀 Live Application**: [https://smartprepai-149283199537.us-central1.run.app](https://smartprepai-1492831dcb3d0bc00ef8bec3d2d175c824865fcb6.us-central1.run.app)
+Live Application Might be down because of the expiration of Free Tier in Google Cloud
 
 ---
 
